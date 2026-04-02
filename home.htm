@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Final Weather App</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  color: white;
+  text-align: center;
+  transition: background 0.6s ease;
+  background: linear-gradient(to top, #1e3c72, #2a5298);
+  background-attachment: fixed;
+}
+
+/* Container */
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 30px;
+}
+
+/* Heading */
+h1 {
+  margin-bottom: 20px;
+}
+
+/* Input */
+input {
+  padding: 10px;
+  width: 220px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+}
+
+button {
+  padding: 10px 15px;
+  background: #38bdf8;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* Glass UI */
+.current, .card {
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(15px);
+  border-radius: 15px;
+  padding: 20px;
+  margin-top: 15px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Forecast grid */
+.forecast {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
+  gap: 20px;
+  margin-top: 25px;
+}
+
+/* Hover */
+.card:hover {
+  transform: translateY(-5px);
+  transition: 0.3s;
+}
+
+/* Chart */
+canvas {
+  margin-top: 30px;
+}
+
+/* Responsive */
+@media(max-width:600px){
+  input { width: 140px; }
+}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+  <h1>🌦 Weather App</h1>
+
+  <input type="text" id="city" placeholder="Enter city">
+  <button onclick="getWeather()">Search</button>
+
+  <div id="current" class="current"></div>
+  <div id="forecast" class="forecast"></div>
+
+  <canvas id="chart"></canvas>
+</div>
+
+<script>
+const apiKey = "47fdb76a226ee91a2f60d4eaeca88ae9";
+let chart;
+
+// Fetch weather
+async function getWeather() {
+  const city = document.getElementById("city").value;
+
+  if(!city){
+    alert("Please enter a city");
+    return;
+  }
+
+  try {
+    const current = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`
+    ).then(res => res.json());
+
+    const forecast = await fetch(
+      `https://api.openweathermap.org/data/2.5/forecast?q=${city}&units=metric&appid=${apiKey}`
+    ).then(res => res.json());
+
+    if(current.cod !== 200){
+      document.getElementById("current").innerHTML = "❌ City not found";
+      return;
+    }
+
+    displayCurrent(current);
+    displayForecast(forecast);
+    displayChart(forecast);
+
+  } catch {
+    document.getElementById("current").innerHTML = "❌ Error fetching data";
+  }
+}
+
+// Dynamic background
+function displayCurrent(data) {
+  const weather = data.weather[0].main.toLowerCase();
+
+  let bg = "";
+
+  if (weather.includes("clear")) {
+    bg = "linear-gradient(to top, #4facfe, #00f2fe)";
+  }
+  else if (weather.includes("cloud")) {
+    bg = "linear-gradient(to top, #757f9a, #d7dde8)";
+  }
+  else if (weather.includes("rain")) {
+    bg = "linear-gradient(to top, #314755, #26a0da)";
+  }
+  else if (weather.includes("snow")) {
+    bg = "linear-gradient(to top, #e6dada, #274046)";
+  }
+  else {
+    bg = "linear-gradient(to top, #1e3c72, #2a5298)";
+  }
+
+  document.body.style.background = bg;
+
+  document.getElementById("current").innerHTML = `
+    <h2>${data.name}</h2>
+    <p>🌡 ${data.main.temp}°C</p>
+    <p>${data.weather[0].main}</p>
+    <p>💧 Humidity: ${data.main.humidity}%</p>
+    <p>💨 Wind: ${data.wind.speed} m/s</p>
+  `;
+}
+
+// Forecast
+function displayForecast(data) {
+  let output = "";
+
+  for(let i = 0; i < data.list.length; i += 8){
+    const day = data.list[i];
+
+    output += `
+      <div class="card">
+        <p>${new Date(day.dt_txt).toDateString().slice(0,10)}</p>
+        <p>${day.main.temp}°C</p>
+      </div>
+    `;
+  }
+
+  document.getElementById("forecast").innerHTML = output;
+}
+
+// Chart
+function displayChart(data) {
+  const labels = data.list.slice(0,8).map(d => d.dt_txt.split(" ")[1]);
+  const temps = data.list.slice(0,8).map(d => d.main.temp);
+
+  if(chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("chart"), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: "Temperature",
+        data: temps,
+        borderWidth: 2,
+        tension: 0.3
+      }]
+    }
+  });
+}
+</script>
+
+</body>
+</html>
